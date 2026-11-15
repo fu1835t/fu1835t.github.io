@@ -113,16 +113,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const rawList = await FinanceAPI.getMarketStocks(marketKey);
     state.stocks = rawList;
 
-    const now = new Date();
-    els.updatedTime.textContent = `最後資料結算：${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    const meta = FinanceAPI.getMetaState(marketKey);
+    const dateStr = meta.date ? `（官方交易日：${meta.date}）` : '';
+    const nowTime = new Date().toLocaleTimeString();
+    els.updatedTime.textContent = `最後資料結算：${meta.updated_at || nowTime} ${dateStr}`;
     if (els.dataSourceProvider) {
-      if (marketKey === 'TW') {
-        els.dataSourceProvider.textContent = '資料連線來源：台灣證券交易所 (TWSE) 官方開放資料 API';
-      } else if (marketKey === 'US') {
-        els.dataSourceProvider.textContent = '資料連線來源：Yahoo Finance 官方即時成交報價';
-      } else {
-        els.dataSourceProvider.textContent = '資料連線來源：Yahoo Finance 全球跨市場指數即時引擎';
-      }
+      els.dataSourceProvider.textContent = `資料連線來源：${meta.source || '台灣證券交易所 (TWSE) 官方開放資料 API'}`;
     }
 
     HeatmapModule.render(state.stocks, state.metric, state.subFilter);
