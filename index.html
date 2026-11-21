@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="全方位台股與美股視覺化理財儀表板，提供市場熱力圖、即時走勢 K 線圖、資金流向與板塊強弱分析。">
+  <title>ApexFinance 宏觀智投 - 雙市場視覺化理財終端JF</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Apache ECharts CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+
+<body class="theme-dark">
+  <!-- Top Navigation Header -->
+  <header class="app-header" id="app-header">
+    <div class="header-left">
+      <div class="brand-logo" id="brand-logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 2 22 22 22"></polygon>
+          <line x1="12" y1="8" x2="12" y2="17"></line>
+        </svg>
+        <div class="brand-text">
+          <h1 class="brand-title">ApexFinance</h1>
+          <span class="brand-sub">宏觀智投視覺化終端</span>
+        </div>
+      </div>
+
+      <!-- Main Market Tabs -->
+      <nav class="market-nav" id="market-nav" aria-label="市場類別選擇">
+        <button class="nav-tab active" data-market="TW" id="tab-tw">台股 TW</button>
+        <button class="nav-tab" data-market="US" id="tab-us">美股 US</button>
+        <button class="nav-tab" data-market="INDEX" id="tab-index">國際指數 Global</button>
+      </nav>
+    </div>
+
+    <div class="header-right">
+      <!-- Status Indicator -->
+      <div class="market-status" id="market-status-badge">
+        <span class="status-dot live"></span>
+        <span class="status-label" id="market-status-text">市場即時更新中</span>
+      </div>
+
+      <!-- Market Color Scheme Toggle -->
+      <div class="scheme-toggle" title="切換漲跌色彩慣例（台股習慣：紅漲綠跌 / 國際習慣：綠漲紅跌）">
+        <span class="toggle-desc">色彩習慣：</span>
+        <button class="scheme-btn active" id="scheme-tw-btn" data-scheme="tw">台式紅漲</button>
+        <button class="scheme-btn" id="scheme-intl-btn" data-scheme="intl">美式綠漲</button>
+      </div>
+
+      <!-- Theme Switcher -->
+      <button class="icon-button" id="theme-toggle-btn" aria-label="切換主題深淺色" title="切換深淺外觀">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      </button>
+
+      <!-- Refresh / API Sync Button -->
+      <button class="action-btn primary" id="data-refresh-btn">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <span>即時同步</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Market Overview Bar -->
+  <section class="ticker-strip" id="market-ticker-strip">
+    <div class="ticker-container" id="ticker-container">
+      <!-- Dynamic ticker items generated via JS -->
+    </div>
+  </section>
+
+  <!-- Main Workspace Layout -->
+  <main class="dashboard-main" id="dashboard-main">
+    <!-- Top Filter & Control Toolbar -->
+    <div class="control-toolbar glass-card" id="control-toolbar">
+      <div class="filter-group" id="market-sub-filters">
+        <span class="filter-title">板塊細分：</span>
+        <button class="filter-chip active" data-sub="ALL" id="filter-all">全部市場</button>
+        <button class="filter-chip" data-sub="TECH" id="filter-tech">科技半導體</button>
+        <button class="filter-chip" data-sub="FIN" id="filter-fin">金融控股</button>
+        <button class="filter-chip" data-sub="TRAD" id="filter-trad">傳產航運</button>
+        <button class="filter-chip" data-sub="BIO" id="filter-bio">生技綠能</button>
+      </div>
+
+      <div class="filter-group right">
+        <!-- Visual Dimension Selector -->
+        <label for="treemap-size-metric" class="select-label">面積指標：</label>
+        <select id="treemap-size-metric" class="custom-select">
+          <option value="marketCap" selected>市值權重 (Market Cap)</option>
+          <option value="turnover">今日成交額 (Turnover)</option>
+          <option value="volatility">振幅動能 (Volatility)</option>
+        </select>
+
+        <!-- Search Bar with Dropdown Suggestions -->
+        <div class="search-wrapper" id="search-wrapper">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="stock-search-input" placeholder="搜尋股票代號或名稱（例如 2498 / 2330 / NVDA）..." autocomplete="off">
+            <button class="search-clear-btn" id="search-clear-btn" aria-label="清除搜尋內容" title="清除">&times;</button>
+          </div>
+          <!-- Auto-complete Search Suggestions Dropdown -->
+          <div class="search-dropdown" id="search-dropdown" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Primary Grid Section: Heatmap & Side Panel -->
+    <section class="visualization-grid">
+      <!-- Left Major Card: Market Heatmap (Treemap) -->
+      <article class="grid-card heatmap-card glass-card" id="heatmap-container-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title" id="heatmap-title">全市場板塊生態熱圖 (Market Treemap)</h2>
+            <span class="card-subtitle" id="heatmap-subtitle">區塊面積代表市值規模，顏色代表今日即時漲跌幅</span>
+          </div>
+
+          <div class="heatmap-legend" id="heatmap-legend">
+            <span class="legend-scale-label">-3% 或更低</span>
+            <div class="legend-gradient" id="legend-gradient-bar"></div>
+            <span class="legend-scale-label">+3% 或更高</span>
+          </div>
+        </div>
+
+        <!-- Treemap Canvas -->
+        <div class="card-body">
+          <div id="market-treemap-chart" class="chart-canvas" role="region" aria-label="市場熱力圖展示區"></div>
+        </div>
+
+        <div class="card-footer">
+          <div class="footer-meta">
+            <span id="data-updated-time">最後資料結算：--:--:--</span>
+            <span class="divider">|</span>
+            <span id="data-source-provider">資料連線來源：開放實時數據引擎 (FinMind / Yahoo Finance)</span>
+          </div>
+          <div class="footer-tip">
+            <span>點擊任意區塊可深入檢視個股即時 K 線與技術指標</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Right Side Panel: Rankings & Industry Strength -->
+      <aside class="grid-card sidebar-card glass-card" id="sidebar-analysis-card">
+        <!-- Tabbed Header for Sidebar -->
+        <div class="side-tab-bar" id="side-tab-bar">
+          <button class="side-tab active" data-sidetab="ranking" id="tab-btn-ranking">強弱漲跌榜</button>
+          <button class="side-tab" data-sidetab="sectors" id="tab-btn-sectors">產業動能</button>
+        </div>
+
+        <!-- Panel 1: Rankings -->
+        <div class="side-panel-content active" id="panel-ranking">
+          <div class="ranking-header-filters">
+            <button class="rank-filter-btn active" data-rank="gainers" id="rank-gainers-btn">漲幅領先</button>
+            <button class="rank-filter-btn" data-rank="losers" id="rank-losers-btn">跌幅居前</button>
+            <button class="rank-filter-btn" data-rank="volume" id="rank-volume-btn">成交爆量</button>
+          </div>
+          <div class="ranking-list" id="ranking-list-container">
+            <!-- Dynamic Ranking Items -->
+          </div>
+        </div>
+
+        <!-- Panel 2: Sector Strength Radar -->
+        <div class="side-panel-content" id="panel-sectors">
+          <div class="sub-chart-title">核心產業資金淨流入與熱度評比</div>
+          <div id="sector-bar-chart" class="chart-canvas-small"></div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Secondary Grid Section: Detailed Candlestick Chart (K-Line) -->
+    <section class="grid-card candlestick-card glass-card" id="candlestick-section">
+      <div class="card-header">
+        <div class="stock-hero-info" id="selected-stock-hero">
+          <div class="hero-main">
+            <span class="stock-ticker" id="kline-ticker">2330</span>
+            <span class="stock-name" id="kline-name">台積電 (TSMC)</span>
+            <span class="stock-market-tag" id="kline-market">台股上市 / 半導體</span>
+          </div>
+          <div class="hero-prices">
+            <span class="current-price" id="kline-current-price">985.00</span>
+            <span class="price-change up" id="kline-price-change">+15.00 (+1.55%)</span>
+          </div>
+        </div>
+
+        <!-- Technical Indicator Selector -->
+        <div class="kline-controls">
+          <div class="timeframe-buttons" id="timeframe-group">
+            <button class="tf-btn" data-tf="1D">分時</button>
+            <button class="tf-btn active" data-tf="D">日 K</button>
+            <button class="tf-btn" data-tf="W">週 K</button>
+            <button class="tf-btn" data-tf="M">月 K</button>
+          </div>
+          <div class="divider-v"></div>
+          <div class="indicator-toggles" id="indicator-group">
+            <button class="ind-btn active" data-ind="MA">MA 均線</button>
+            <button class="ind-btn" data-ind="BOLL">布林通道</button>
+            <button class="ind-btn active" data-ind="VOL">成交量</button>
+            <button class="ind-btn" data-ind="MACD">MACD</button>
+            <button class="ind-btn" data-ind="RSI">RSI</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Candlestick Main Canvas -->
+      <div class="card-body">
+        <div id="stock-candlestick-chart" class="chart-canvas-large" role="region" aria-label="個股技術線圖分析區"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Stock Quick Detail Modal -->
+  <div class="modal-backdrop" id="stock-detail-modal" aria-hidden="true">
+    <div class="modal-dialog glass-card">
+      <button class="modal-close-btn" id="modal-close-btn" aria-label="關閉彈窗">&times;</button>
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-stock-title">個股即時快訊與財務全景</h3>
+      </div>
+      <div class="modal-body" id="modal-stock-body">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="scripts/api.js?v=20261121b"></script>
+  <script src="scripts/treemap.js?v=20261121b"></script>
+  <script src="scripts/candlestick.js?v=20261121b"></script>
+  <script src="scripts/ranking.js?v=20261121b"></script>
+  <script src="scripts/app.js?v=20261121b"></script>
+</body>
+
+</html>
