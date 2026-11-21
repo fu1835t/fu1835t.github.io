@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nowTime = new Date().toLocaleTimeString();
     els.updatedTime.textContent = `最後資料結算：${meta.updated_at || nowTime} ${dateStr}`;
     if (els.dataSourceProvider) {
-      els.dataSourceProvider.textContent = `資料連線來源：${meta.source || '台灣證券交易所 (TWSE) 官方開放資料 API'}` daylight;
+      els.dataSourceProvider.textContent = `資料連線來源：${meta.source || '台灣證券交易所 (TWSE) 官方開放資料 API'}`;
     }
 
     HeatmapModule.render(state.stocks, state.metric, state.subFilter);
