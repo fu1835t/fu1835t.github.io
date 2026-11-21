@@ -95,7 +95,7 @@ def update_tw_stocks(output_dir):
     try:
         with urllib.request.urlopen(req, timeout=15) as res:
             raw_data = res.read()
-            items = json.loads(raw_data.decode('big5', errors='ignore'))
+            items = json.loads(raw_data.decode('utf-8', errors='ignore'))
             indexed = {item['Code']: item for item in items if 'Code' in item}
             if items:
                 twse_date = items[0].get('Date', '')
@@ -105,10 +105,15 @@ def update_tw_stocks(output_dir):
                 if code in indexed:
                     raw = indexed[code]
                     try:
-                        closing_price = float(raw.get('ClosingPrice', 0) or 0)
-                        change_val = float(raw.get('Change', 0) or 0)
-                        trade_volume = int(raw.get('TradeVolume', 0) or 0)
-                        trade_value = float(raw.get('TradeValue', 0) or 0)
+                        closing_raw = str(raw.get('ClosingPrice', '')).replace(',', '').strip()
+                        change_raw = str(raw.get('Change', '')).replace(',', '').replace('+', '').strip()
+                        volume_raw = str(raw.get('TradeVolume', '')).replace(',', '').strip()
+                        value_raw = str(raw.get('TradeValue', '')).replace(',', '').strip()
+
+                        closing_price = float(closing_raw) if closing_raw and closing_raw != '--' else 0.0
+                        change_val = float(change_raw) if change_raw and change_raw != '--' else 0.0
+                        trade_volume = int(float(volume_raw)) if volume_raw and volume_raw != '--' else 0
+                        trade_value = float(value_raw) if value_raw and value_raw != '--' else 0.0
                         turnover_billion = round(trade_value / 100000000.0, 1)
 
                         prev_close = closing_price - change_val
