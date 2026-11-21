@@ -34,8 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sideTabs: document.querySelectorAll('.side-tab'),
     sidePanels: {
       ranking: document.getElementById('panel-ranking'),
-      sectors: document.getElementById('panel-sectors'),
-      portfolio: document.getElementById('panel-portfolio')
+      sectors: document.getElementById('panel-sectors')
     },
     rankFilters: document.querySelectorAll('.rank-filter-btn'),
     timeframeBtns: document.querySelectorAll('.tf-btn'),
@@ -64,8 +63,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     selectStock(stock);
     scrollToKline();
   });
-
-  PortfolioModule.init('portfolio-pie-chart');
 
   // 動態更新板塊篩選晶片
   function updateSubFilterChips(marketKey) {
@@ -118,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nowTime = new Date().toLocaleTimeString();
     els.updatedTime.textContent = `最後資料結算：${meta.updated_at || nowTime} ${dateStr}`;
     if (els.dataSourceProvider) {
-      els.dataSourceProvider.textContent = `資料連線來源：${meta.source || '台灣證券交易所 (TWSE) 官方開放資料 API'}`;
+      els.dataSourceProvider.textContent = `資料連線來源：${meta.source || '台灣證券交易所 (TWSE) 官方開放資料 API'}` daylight;
     }
 
     HeatmapModule.render(state.stocks, state.metric, state.subFilter);
@@ -570,7 +567,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (els.sidePanels[targetPanel]) {
         els.sidePanels[targetPanel].classList.add('active');
         if (targetPanel === 'sectors') RankingModule.resize();
-        if (targetPanel === 'portfolio') PortfolioModule.resize();
       }
     });
   });
