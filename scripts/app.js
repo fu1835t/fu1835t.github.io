@@ -131,10 +131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 3. 選中個股/指數並聯動 K 線圖與資訊列
-  function selectStock(stock) {
-    state.selectedStock = stock;
-    if (!stock) return;
-
+  function renderStockInfo(stock) {
     els.klineTicker.textContent = stock.ticker;
     els.klineName.textContent = stock.name;
     const marketLabel = stock.market === 'TW' ? '台股上市公司' : stock.market === 'US' ? '美股證券' : '國際指數';
@@ -154,6 +151,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     els.klineChange.className = `price-change ${colorClass}`;
 
     CandlestickModule.render(stock);
+  }
+
+  function selectStock(stock) {
+    state.selectedStock = stock;
+    if (!stock) return;
+
+    renderStockInfo(stock);
+
+    // 若為台股標的，非同步請求即時最新價格以確保行情絕對準確
+    if (stock.market === 'TW') {
+      const currentTicker = stock.ticker;
+      FinanceAPI.fetchLiveTWStock(currentTicker).then(live => {
+        if (live && state.selectedStock && state.selectedStock.ticker === currentTicker) {
+          state.selectedStock.price = live.price;
+          state.selectedStock.change = live.change;
+          state.selectedStock.changePct = live.changePct;
+          state.selectedStock.volume = live.volume;
+          state.selectedStock.turnover = live.turnover;
+          renderStockInfo(state.selectedStock);
+
+          const matched = state.stocks.find(s => s.ticker === currentTicker);
+          if (matched) {
+            Object.assign(matched, live);
+            HeatmapModule.render(state.stocks, state.metric, state.subFilter);
+            RankingModule.setStocks(state.stocks);
+            updateTickerStrip(state.stocks);
+          }
+        }
+      });
+    }
   }
 
   function scrollToKline() {
@@ -584,6 +611,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     els.refreshBtn.classList.add('rotating');
     showToast('正在與官方伺服器進行即時行情同步...');
     await loadMarket(state.market);
+
+    if (state.selectedStock && state.selectedStock.market === 'TW') {
+      const live = await FinanceAPI.fetchLiveTWStock(state.selectedStock.ticker);
+      if (live) {
+        state.selectedStock.price = live.price;
+        state.selectedStock.change = live.change;
+        state.selectedStock.changePct = live.changePct;
+        state.selectedStock.volume = live.volume;
+        state.selectedStock.turnover = live.turnover;
+        renderStockInfo(state.selectedStock);
+
+        const matched = state.stocks.find(s => s.ticker === state.selectedStock.ticker);
+        if (matched) {
+          Object.assign(matched, live);
+          HeatmapModule.render(state.stocks, state.metric, state.subFilter);
+          RankingModule.setStocks(state.stocks);
+          updateTickerStrip(state.stocks);
+        }
+      }
+    }
+
     showToast('已成功同步官方即時成交報價！');
     setTimeout(() => els.refreshBtn.classList.remove('rotating'), 600);
   });
