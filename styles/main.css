@@ -316,7 +316,7 @@ html, body {
 .ticker-container {
   display: inline-flex;
   gap: 36px;
-  animation: tickerScroll 45s linear infinite;
+  animation: tickerScroll 150s linear infinite;
   padding-left: 20px;
 }
 
