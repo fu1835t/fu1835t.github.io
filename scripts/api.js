@@ -987,52 +987,74 @@ const FinanceAPI = (() => {
 ];
 
   // 以真實成交價產生 90 天日 K 線歷史走勢
-  function generateKLineHistory(basePrice, trendVolatility = 0.018, days = 90) {
+  function generateKLineHistory(basePrice, trendVolatility = 0.015, days = 90) {
     const dates = [];
     const values = [];
-    let current = basePrice * 0.92;
     const now = new Date();
 
-    for (let i = days; i >= 1; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
-      if (d.getDay() === 0 || d.getDay() === 6) continue;
-
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      dates.push(dateStr);
-
-      const delta = (Math.random() - 0.49) * trendVolatility * current;
-      const open = Math.max(1, current);
-      const close = Math.max(1, open + delta);
-      const high = Math.max(open, close) + Math.random() * 0.008 * current;
-      const low = Math.min(open, close) - Math.random() * 0.008 * current;
-      const volume = Math.round((Math.random() * 0.8 + 0.6) * 35000);
-
-      values.push([
-        parseFloat(open.toFixed(2)),
-        parseFloat(close.toFixed(2)),
-        parseFloat(low.toFixed(2)),
-        parseFloat(high.toFixed(2)),
-        volume
-      ]);
-
-      current = close;
+    // 收集交易日清單（排除週末）
+    const busDates = [];
+    let dPointer = new Date(now);
+    while (busDates.length < days) {
+      const day = dPointer.getDay();
+      if (day !== 0 && day !== 6) {
+        const dStr = `${dPointer.getFullYear()}-${String(dPointer.getMonth() + 1).padStart(2, '0')}-${String(dPointer.getDate()).padStart(2, '0')}`;
+        busDates.push(dStr);
+      }
+      dPointer.setDate(dPointer.getDate() - 1);
     }
 
-    // 當日最新收盤錨定真實點位
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    dates.push(today);
-    const todayOpen = current;
-    const todayClose = basePrice;
-    values.push([
-      parseFloat(todayOpen.toFixed(2)),
-      parseFloat(todayClose.toFixed(2)),
-      parseFloat((Math.min(todayOpen, todayClose) * 0.996).toFixed(2)),
-      parseFloat((Math.max(todayOpen, todayClose) * 1.004).toFixed(2)),
-      Math.round(45000)
-    ]);
+    // 從最新真實收盤價 basePrice 開始向歷史回推 (Backwards Walk)，保證無縫連續
+    let currClose = basePrice;
+    for (let i = 0; i < busDates.length; i++) {
+      const pct = (Math.random() - 0.495) * trendVolatility;
+      const open = parseFloat((currClose / (1 + pct)).toFixed(2));
+      const high = parseFloat((Math.max(open, currClose) + Math.random() * 0.006 * currClose).toFixed(2));
+      const low = parseFloat((Math.min(open, currClose) - Math.random() * 0.006 * currClose).toFixed(2));
+      const volume = Math.round((Math.random() * 0.8 + 0.6) * 35000);
 
-    return { dates, values };
+      values.push([open, currClose, low, high, volume]);
+      currClose = open; // 歷史上一日的收盤價即等於當日開盤價
+    }
+
+    busDates.reverse();
+    values.reverse();
+
+    return { dates: busDates, values };
+  }
+
+  // 抓取真實歷史 K 線行情數據 (FinMind OpenAPI，全域開放 CORS)
+  async function fetchHistoricalKLine(ticker, market = 'TW') {
+    if (market === 'TW') {
+      try {
+        const d = new Date();
+        d.setDate(d.getDate() - 160);
+        const startDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${ticker}&start_date=${startDate}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.data && Array.isArray(json.data) && json.data.length > 0) {
+            const dates = [];
+            const values = [];
+            json.data.forEach(item => {
+              dates.push(item.date);
+              values.push([
+                parseFloat(Number(item.open).toFixed(2)),
+                parseFloat(Number(item.close).toFixed(2)),
+                parseFloat(Number(item.min).toFixed(2)),
+                parseFloat(Number(item.max).toFixed(2)),
+                Number(item.Trading_Volume || item.volume || 0)
+              ]);
+            });
+            return { dates, values };
+          }
+        }
+      } catch (err) {
+        console.warn(`[FinanceAPI] 取得個股 ${ticker} 真實歷史 K 線未果:`, err.message);
+      }
+    }
+    return null;
   }
 
   // 即時向支援 CORS 之合法開放金融 API (FinMind) 查詢個股真實成交報價
@@ -1197,6 +1219,7 @@ const FinanceAPI = (() => {
     searchStocks,
     getMetaState,
     generateKLineHistory,
-    fetchLiveTWStock
+    fetchLiveTWStock,
+    fetchHistoricalKLine
   };
 })();
