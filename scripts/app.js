@@ -156,9 +156,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderStockInfo(stock);
 
-    // 若為台股標的，非同步請求即時最新價格以確保行情絕對準確
+    // 若為台股標的，非同步請求真實歷史 K 線與即時最新價格以確保技術分析與行情絕對準確
     if (stock.market === 'TW') {
       const currentTicker = stock.ticker;
+
+      // 1. 取得真實交易所歷史 K 線 (FinMind)
+      FinanceAPI.fetchHistoricalKLine(currentTicker, 'TW').then(realKline => {
+        if (realKline && state.selectedStock && state.selectedStock.ticker === currentTicker) {
+          state.selectedStock.kline = realKline;
+          const matched = state.stocks.find(s => s.ticker === currentTicker);
+          if (matched) matched.kline = realKline;
+          CandlestickModule.render(state.selectedStock);
+        }
+      });
+
+      // 2. 取得即時成交價
       FinanceAPI.fetchLiveTWStock(currentTicker).then(live => {
         if (live && state.selectedStock && state.selectedStock.ticker === currentTicker) {
           state.selectedStock.price = live.price;
@@ -609,6 +621,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadMarket(state.market);
 
     if (state.selectedStock && state.selectedStock.market === 'TW') {
+      FinanceAPI.fetchHistoricalKLine(state.selectedStock.ticker, 'TW').then(realKline => {
+        if (realKline && state.selectedStock) {
+          state.selectedStock.kline = realKline;
+          CandlestickModule.render(state.selectedStock);
+        }
+      });
       const live = await FinanceAPI.fetchLiveTWStock(state.selectedStock.ticker);
       if (live) {
         state.selectedStock.price = live.price;
